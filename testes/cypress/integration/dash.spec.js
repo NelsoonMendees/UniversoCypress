@@ -1,4 +1,5 @@
 ///<reference types="Cypress" />
+import loginPage from '../support/pages/login';
 
 describe("Dashboard", function () {
 
@@ -19,7 +20,7 @@ describe("Dashboard", function () {
             }
         }
 
-        before(function (){
+        before(function () {
             cy.postUser(data.provider) //prestador de serviço
             cy.postUser(data.custumer) //cliente
 
@@ -27,15 +28,47 @@ describe("Dashboard", function () {
             cy.log('Token capturado ' + Cypress.env('apiToken'))
 
             cy.setProviderId(data.provider.email)
+            cy.createAppointment()
         })
 
         it('O mesmo deve ser exibido no dashboard', function () {
-           cy.log('Id do Ramom é ' + Cypress.env('providerId'))
+
+            loginPage.go()
+            loginPage.form(data.provider)
+            loginPage.submit()
+
+            cy.wait(3000)
         })
     })
 })
 
-Cypress.Commands.add('setProviderId', function (providerEmail){
+import moment from 'moment';
+
+Cypress.Commands.add('createAppointment', function () {
+    let now = new Date()
+
+    now.setDate(now.getDate() + 1)
+
+    const date = moment(now).format('YYYY-MM-DD 14:00:00')
+
+    const payload = {
+        provider_id: Cypress.env('providerId'),
+        date: date
+    }
+
+    cy.request({
+        method: 'POST',
+        url: 'http://localhost:3333/appointments',
+        body: payload,
+        headers: {
+            authorization: 'Bearer ' + Cypress.env('apiToken')
+        }
+    }).then(function (response) {
+        expect(response.status).to.eq(200)
+    })
+})
+
+Cypress.Commands.add('setProviderId', function (providerEmail) {
 
     cy.request({
         method: 'GET',
@@ -49,15 +82,15 @@ Cypress.Commands.add('setProviderId', function (providerEmail){
 
         const providerList = response.body
 
-        providerList.forEach(function (provider){
-            if(provider.email === providerEmail){
+        providerList.forEach(function (provider) {
+            if (provider.email === providerEmail) {
                 Cypress.env('providerId', provider.id)
             }
         })
     })
 })
 
-Cypress.Commands.add('apiLogin', function(user){
+Cypress.Commands.add('apiLogin', function (user) {
     const payload = {
         email: user.email,
         password: user.password
@@ -67,7 +100,7 @@ Cypress.Commands.add('apiLogin', function(user){
         method: 'POST',
         url: 'http://localhost:3333/sessions',
         body: payload
-    }).then(function(response){
+    }).then(function (response) {
         expect(response.status).to.eq(200)
         Cypress.env('apiToken', response.body.token) //captura o token gerado
     })
